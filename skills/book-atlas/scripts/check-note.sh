@@ -100,7 +100,12 @@ h2_miss=""
 conn_h2_present=0
 while IFS= read -r h; do
   [ -z "$h" ] && continue
-  if printf '%s\n' "$above" | grep -qF "## $h"; then
+  # 앵커 필수 — -F 부분 문자열 매칭이면 "### 개념"(H3로 격하) 이 "## 개념"
+  # 을 부분 문자열로 포함해 거짓으로 통과한다("###"의 마지막 두 '#'+공백이
+  # "## " 와 겹침). ^## 로 줄 시작을 고정하고 뒤는 공백 또는 줄 끝만 허용해
+  # H3/H4 로 격하된 헤더를 확실히 걸러낸다 — :194 의 용어집 대조 패턴과 같은
+  # 원칙.
+  if printf '%s\n' "$above" | grep -qE "^## ${h}([[:space:]]|$)"; then
     [ "$h" = "연결" ] && conn_h2_present=1
   else
     h2_miss="$h2_miss [$h]"
