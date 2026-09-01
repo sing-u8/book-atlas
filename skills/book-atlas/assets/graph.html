@@ -126,7 +126,7 @@
   const el = document.getElementById('graph');
   const Graph = ForceGraph3D()(el)
     .backgroundColor('#0e1117')
-    .nodeLabel(n => n.label)
+    .nodeLabel(n => escapeHtml(n.label))
     .nodeVal(nodeVal)
     .nodeColor(n => (hl.size && !hl.has(n.id)) ? '#30363d' : (n.status === 'draft' ? COLORS.note + '59' : COLORS[n.type]))
     .linkWidth(l => l.type === 'covers' ? 2 : 1)
@@ -151,7 +151,7 @@
     const q = e.target.value.trim().toLowerCase();
     if (!q) { setHighlight(null); return; }
     const match = filteredNodes.find(n => (n.label || '').toLowerCase().includes(q));
-    if (!match) return;
+    if (!match) { setHighlight(null); return; }
     setHighlight(match.id);
     if (typeof match.x === 'number') {
       Graph.cameraPosition(
