@@ -230,6 +230,10 @@ def main():
             'relpath': str(rel.with_suffix('')).replace('\\', '/'),
             'path': str(rel).replace('\\', '/'),
             'chapter_dir': p.parent.name,
+            # Part 계층이 있는 책에서는 챕터 디렉터리가 vault 루트 바로 아래가
+            # 아니라 part-N-{slug}/ 아래에 있다. manifest 는 챕터 슬러그만
+            # 담으므로, 파일에서 얻은 이 실제 상대 경로가 정본이다.
+            'chapter_reldir': str(p.parent.relative_to(root)).replace('\\', '/'),
             'stem': p.stem,
             'fm': fm,
             'above': above,
@@ -281,8 +285,28 @@ def main():
     for n in raw_notes:
         notes_by_chapter.setdefault(n['chapter_dir'], []).append(n)
 
+    # 챕터 슬러그 → vault 기준 실제 상대 경로. Part 있는 책은 part-N-{slug}/
+    # 아래에 챕터가 있으므로 manifest 의 슬러그만으로는 경로가 안 나온다.
+    # 노트가 이미 있으면 그 부모 경로가 정본이고, 없으면 디렉터리를 찾는다.
+    chapter_reldir = {}
+    for n in raw_notes:
+        chapter_reldir.setdefault(n['chapter_dir'], n['chapter_reldir'])
+    for ch in chapters:
+        if ch['dir'] in chapter_reldir:
+            continue
+        if (root / ch['dir']).is_dir():
+            chapter_reldir[ch['dir']] = ch['dir']
+            continue
+        for cand in sorted(root.glob(f"*/{ch['dir']}")):
+            if cand.is_dir():
+                chapter_reldir[ch['dir']] = str(cand.relative_to(root)).replace('\\', '/')
+                break
+        else:
+            chapter_reldir[ch['dir']] = ch['dir']
+
     for ch in chapters:
         chapter_id = f"chapter:{ch['dir']}"
+        ch_rel = chapter_reldir[ch['dir']]
         chapter_notes = notes_by_chapter.get(ch['dir'], [])
         if chapter_notes:
             done = sum(1 for n in chapter_notes if n['fm'].get('status') == 'done')
@@ -290,7 +314,7 @@ def main():
         else:
             done = 0
             total = ch['lowest']
-        chapter_md = root / ch['dir'] / '_chapter.md'
+        chapter_md = root / ch_rel / '_chapter.md'
         chapter_node = {
             'id': chapter_id,
             'type': 'chapter',
@@ -303,7 +327,7 @@ def main():
             # 챕터·노트 노드를 만나면 Obsidian 을 시도하지 않고 정보 패널로
             # 폴백한다(진행률 표시). path 를 항상 내보내면 아직 없는 파일을
             # Obsidian 이 "새로 만들까요"로 오인해 묻는다.
-            chapter_node['path'] = f"{ch['dir']}/_chapter.md"
+            chapter_node['path'] = f"{ch_rel}/_chapter.md"
         add_node(chapter_node)
         add_link(book_id, chapter_id, 'toc')
         for n in chapter_notes:
@@ -378,20 +402,21 @@ def main():
 
     # --- 경고 ②: _coverage.md 의 "정리 노트" 참조가 실제 노트 파일로 존재하는가 ---
     for ch in chapters:
-        cov_path = root / ch['dir'] / '_coverage.md'
+        ch_rel = chapter_reldir[ch['dir']]
+        cov_path = root / ch_rel / '_coverage.md'
         if not cov_path.is_file():
             continue
         cov_text = cov_path.read_text(encoding='utf-8')
         for name in dict.fromkeys(wiki_links(cov_text)):
-            if not (root / ch['dir'] / f'{name}.md').is_file():
-                warn(f"{ch['dir']}/_coverage.md → [[{name}]] 은(는) 존재하지 않는 노트로 가는 링크")
+            if not (root / ch_rel / f'{name}.md').is_file():
+                warn(f"{ch_rel}/_coverage.md → [[{name}]] 은(는) 존재하지 않는 노트로 가는 링크")
 
     # --- 경고 ③: 절 노트가 자기 챕터의 _coverage.md 에 등장하는가(고아 노트) ---
     for n in raw_notes:
-        cov_path = root / n['chapter_dir'] / '_coverage.md'
+        cov_path = root / n['chapter_reldir'] / '_coverage.md'
         referenced = cov_path.is_file() and f"[[{n['stem']}]]" in cov_path.read_text(encoding='utf-8')
         if not referenced:
-            warn(f"{n['path']} 은(는) {n['chapter_dir']}/_coverage.md 에 없음")
+            warn(f"{n['path']} 은(는) {n['chapter_reldir']}/_coverage.md 에 없음")
 
     # --- 경고 ④: 어느 노트·frontmatter 도 참조하지 않는 용어집 항목(용어집 내부 링크는 불인정) ---
     for slug in sorted(glossary_slugs):
