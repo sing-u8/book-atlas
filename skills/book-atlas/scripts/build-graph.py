@@ -290,13 +290,21 @@ def main():
         else:
             done = 0
             total = ch['lowest']
-        add_node({
+        chapter_md = root / ch['dir'] / '_chapter.md'
+        chapter_node = {
             'id': chapter_id,
             'type': 'chapter',
             'label': ch['label'],
-            'path': f"{ch['dir']}/_chapter.md",
             'progress': {'done': done, 'total': total},
-        })
+        }
+        if chapter_md.is_file():
+            # 아직 챕터를 시작하지 않아 _chapter.md 가 없으면 path 를 아예
+            # 내보내지 않는다 — 뷰어(graph.html onNodeClick)는 path 없는
+            # 챕터·노트 노드를 만나면 Obsidian 을 시도하지 않고 정보 패널로
+            # 폴백한다(진행률 표시). path 를 항상 내보내면 아직 없는 파일을
+            # Obsidian 이 "새로 만들까요"로 오인해 묻는다.
+            chapter_node['path'] = f"{ch['dir']}/_chapter.md"
+        add_node(chapter_node)
         add_link(book_id, chapter_id, 'toc')
         for n in chapter_notes:
             add_link(chapter_id, f"note:{n['relpath']}", 'toc')

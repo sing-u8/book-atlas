@@ -273,7 +273,7 @@ check-chapter 를 통과한다. 병합된 항목(§7)은 행을 지우지 않고
 - **중복 정의 금지** — 같은 용어를 두 번 등재하지 않는다. 다른 노트에서 재등장하면
   링크만 건다.
 - `섞이는 말` 은 선택 필드지만, 있으면 그래프의 `related` 엣지가 된다.
-- 정의 첫 문장은 그래프 뷰어의 개념 노드 정보 패널에 표시된다(빌더가 추출).
+- 정의 첫 줄(120자 절단)은 그래프 뷰어의 개념 노드 정보 패널에 표시된다(빌더가 추출).
 
 ---
 
@@ -297,7 +297,7 @@ window.ATLAS_DATA = {
     { id: "note:chapter-01-…/01-the-rise…", type: "note", label: "1.1 The Rise…",
       path: "chapter-01-…/01-the-rise….md", status: "done" },
     { id: "concept:foundation-model", type: "concept", label: "foundation-model",
-      def: "정의 첫 문장" }
+      def: "정의 첫 줄(120자 절단)" }
   ],
   links: [
     // type 의미:
@@ -333,7 +333,8 @@ window.ATLAS_DATA = {
 - 부수 검증 — **stderr 경고, exit 0 유지** (check 스크립트가 게이트, 빌더는
   리포터):
   - 용어집에 없는 개념 참조 (`concepts:` 항목 포함)
-  - 존재하지 않는 노트로 가는 `[[링크]]`
+  - `_coverage.md` 가 참조하는 노트가 실제로 없음 — 스코프는 coverage 뿐이다
+    (노트 본문의 미해결 `[[링크]]` 는 위 "용어집에 없는 개념 참조" 경로로 잡힌다)
   - `_coverage.md` 에 등장하지 않는 노트
   - 어느 노트도 참조하지 않는 용어집 항목
 - exit 1: vault 루트가 아니거나(`_global/config.md` 없음) 출력 불가.
@@ -350,7 +351,8 @@ window.ATLAS_DATA = {
   - **레이어 토글**: 개념 레이어 / 목차 레이어(book·chapter·note) 체크박스 +
     엣지 타입별(covers/mentions/related/toc/note-link) 토글
   - **호버**: 라벨 + 이웃 하이라이트, 나머지 dim (Obsidian 그래프 뷰 방식)
-  - **검색창**: 이름 부분일치 필터 + 선택 시 카메라 이동
+  - **검색창**: 이름 부분일치 **하이라이트**(첫 매치 + 이웃) + 카메라 이동 —
+    필터가 아니다(매치 안 된 노드도 사라지지 않고 회색으로 남는다)
   - **클릭**: `path` 있는 노드 → `obsidian://open?vault={vault}&file={path}` 로
     이동(URL 인코딩). 개념 노드 → `_glossary` 를 연다. `vault` 가 비어 있으면
     화면 안 정보 패널만 연다(개념 노드는 `def` 표시).
@@ -388,11 +390,16 @@ gaps/confusions/cross-bridges/session-log 파일군, 구분자 아래 스킬 기
 
 모드 라우터 없이 상태 기반 단순 분기. 매 호출 시:
 
-1. `**/*-atlas/_global/config.md` 글롭으로 기존 저장소 탐색
+1. **CWD 자체가 vault 루트인 경우를 글롭보다 먼저 본다** — `_global/config.md` 가
+   CWD 에 바로 있으면 그 저장소를 후보로 삼는다. 아래 글롭은 CWD 의 하위
+   디렉터리만 찾으므로 CWD 자신이 vault 루트일 때는 매치하지 않는다.
+2. 위에서 못 찾았으면 `**/*-atlas/_global/config.md` 글롭으로 기존 저장소 탐색
    (`node_modules/`·`.git/` 제외).
    - 1개 → 사용자 확인 후 활성화. 여러 개 → 고르게 한다.
-2. 저장소 없음 + CWD 에 PDF 있음 → **온보딩**.
-3. 저장소 없음 + PDF 없음 → 무엇을 정리할지 묻는다.
+3. 저장소 없음 + CWD 에 PDF 있음 → **온보딩**. 사용자가 PDF 경로를 인자로 주면
+   CWD 스캔 없이 그 파일을 온보딩 소스로 삼는다(경로가 존재하지 않으면 알리고
+   다시 묻는다).
+4. 저장소 없음 + PDF 없음 → 무엇을 정리할지 묻는다.
 
 ### 온보딩
 
@@ -509,7 +516,9 @@ gaps/confusions/cross-bridges/session-log 파일군, 구분자 아래 스킬 기
     │   └── tests/ (fixtures + run-tests.sh)
     └── assets/
         ├── graph.html
-        └── lib/3d-force-graph.min.js
+        └── lib/
+            ├── 3d-force-graph.min.js
+            └── VERSION.txt
 ```
 
 - `install.sh` → `~/.claude/skills/book-atlas/` 복사, `uninstall.sh` 는 제거.
@@ -528,3 +537,9 @@ gaps/confusions/cross-bridges/session-log 파일군, 구분자 아래 스킬 기
 5. references 4종 (toc-pipeline · note-rules · figures · graph)
 6. SKILL.md · README · install/uninstall
 7. 실전 검증: 실제 PDF 1권으로 온보딩→1개 챕터 정리→그래프 확인
+
+---
+
+## 변경 이력
+
+- 2026-09-01: 구현 확정 사항 반영 (§8·§9·§11·§14) — 최종 리뷰 권고.
