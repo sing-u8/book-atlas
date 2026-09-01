@@ -48,4 +48,11 @@ PY
 expect 0 "build-graph: 데이터 계약 어서션" -- test "$bgjs" -eq 0
 rm -rf "$TMP"
 
+# --- 훅: stdin PostToolUse JSON → 대상 판정 → check-note.sh ---
+note="$F/vault/chapter-01-intro/01-what-is-retrieval.md"
+expect 0 "hook: atlas 노트에 게이트 실행" -- bash -c \
+  'printf "{\"tool_input\":{\"file_path\":\"%s\"}}" "$1" | "$2"' _ "$note" "$S/check-note-hook.sh"
+expect 0 "hook: 비대상 파일은 무시" -- bash -c \
+  'printf "{\"tool_input\":{\"file_path\":\"/tmp/readme.md\"}}" | "$1"' _ "$S/check-note-hook.sh"
+
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]
