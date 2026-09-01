@@ -20,4 +20,8 @@ expect 2 "check-note: 도표 없음"        -- "$S/check-note.sh" "$F/invalid/no
 expect 2 "check-note: 구분자 없음"       -- "$S/check-note.sh" "$F/invalid/no-separator.md"
 expect 1 "check-note: 인자 없음"        -- "$S/check-note.sh"
 
+expect 0 "check-chapter: 통과 챕터"     -- "$S/check-chapter.sh" "$F/vault/chapter-01-intro"
+expect 2 "check-chapter: 누락 참조+고아" -- "$S/check-chapter.sh" "$F/chapter-bad"
+expect 1 "check-chapter: 인자 없음"     -- "$S/check-chapter.sh"
+
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]
