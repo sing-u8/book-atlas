@@ -1,0 +1,166 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<title>book-atlas graph</title>
+<style>
+  html,body{margin:0;height:100%;background:#0e1117;color:#c9d1d9;font:13px/1.5 -apple-system,sans-serif}
+  #panel{position:fixed;top:12px;left:12px;background:#161b22cc;border:1px solid #30363d;
+         border-radius:8px;padding:12px;width:230px;z-index:2}
+  #info{position:fixed;top:12px;right:12px;background:#161b22cc;border:1px solid #30363d;
+        border-radius:8px;padding:12px;width:260px;z-index:2;display:none}
+  label{display:block;margin:2px 0} input[type=text]{width:100%;box-sizing:border-box;
+        background:#0d1117;color:inherit;border:1px solid #30363d;border-radius:4px;padding:4px}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+</style></head><body>
+<div id="panel">
+  <input type="text" id="search" placeholder="노드 검색…">
+  <div style="margin-top:8px"><b>레이어</b>
+    <label><input type="checkbox" id="layer-toc" checked> 목차 (책·챕터·절)</label>
+    <label><input type="checkbox" id="layer-concepts" checked> 개념</label></div>
+  <div style="margin-top:8px"><b>엣지</b>
+    <label><input type="checkbox" id="edge-toc" checked> 목차 계층</label>
+    <label><input type="checkbox" id="edge-covers" checked> 핵심 개념</label>
+    <label><input type="checkbox" id="edge-mentions" checked> 언급</label>
+    <label><input type="checkbox" id="edge-related" checked> 개념 관계</label>
+    <label><input type="checkbox" id="edge-note-link" checked> 노트 연결</label></div>
+  <div style="margin-top:8px" id="legend"></div>
+</div>
+<div id="info"></div><div id="graph"></div>
+<script src="./lib/3d-force-graph.min.js"></script>
+<script src="./graph-data.js"></script>
+<script>
+  const COLORS = { book: '#f6c945', chapter: '#ff8c42', note: '#4ecdc4', concept: '#b085f5' };
+  const LAYER = { book: 'toc', chapter: 'toc', note: 'toc', concept: 'concepts' };
+  const TYPE_LABEL = { book: '책', chapter: '챕터', note: '노트', concept: '개념' };
+
+  // 범례 — COLORS 로부터 생성한다.
+  document.getElementById('legend').innerHTML = '<b>범례</b>' + Object.keys(COLORS).map(t =>
+    `<div><span class="sw" style="background:${COLORS[t]}"></span>${TYPE_LABEL[t]}</div>`
+  ).join('');
+
+  // 차수(degree) — 시작 시 전체 "원본" 데이터에서 1회만 계산한다.
+  // ATLAS_DATA.nodes/links 는 Graph.graphData() 에 절대 직접 넘기지 않는다 —
+  // applyFilters() 는 항상 깊은 복사본만 넘긴다 — 그래서 여기서 읽는
+  // l.source/l.target 은 (라이브러리가 렌더 후 노드 객체 참조로 바꿔치기하는
+  // 대상이 아니므로) 항상 문자열 id 그대로다.
+  const degree = {};
+  ATLAS_DATA.nodes.forEach(n => { degree[n.id] = 0; });
+  ATLAS_DATA.links.forEach(l => {
+    degree[l.source] = (degree[l.source] || 0) + 1;
+    degree[l.target] = (degree[l.target] || 0) + 1;
+  });
+  const nodeVal = n => 2 + (degree[n.id] || 0) * 1.5;
+
+  // .graphData() 는 최초 렌더 이후 링크의 source/target 을 문자열 id 에서
+  // 노드 객체 참조로 바꿔치기한다 — 두 형태를 다 받아 id 만 뽑아낸다.
+  const idOf = x => x.id || x;
+
+  let hl = new Set();       // 현재 하이라이트된 노드 id 집합
+  let filteredNodes = [];   // 지금 Graph 에 올라가 있는 노드 배열(좌표는 라이브러리가 이 객체에 직접 채워 넣는다)
+  let filteredLinks = [];   // 지금 Graph 에 올라가 있는 링크 배열 — 호버 인접 계산은 이 배열 기준
+
+  function applyFilters() {
+    const layerOn = {
+      toc: document.getElementById('layer-toc').checked,
+      concepts: document.getElementById('layer-concepts').checked,
+    };
+    const edgeOn = {
+      toc: document.getElementById('edge-toc').checked,
+      covers: document.getElementById('edge-covers').checked,
+      mentions: document.getElementById('edge-mentions').checked,
+      related: document.getElementById('edge-related').checked,
+      'note-link': document.getElementById('edge-note-link').checked,
+    };
+
+    // 원본 ATLAS_DATA 에서 매번 깊은 복사 — Graph 가 이 사본의 링크
+    // source/target 을 객체로 바꿔치기해도 원본(ATLAS_DATA, degree 계산의
+    // 기준)은 다음 필터링 때도 항상 문자열 id 그대로 남는다.
+    const srcNodes = JSON.parse(JSON.stringify(ATLAS_DATA.nodes));
+    const srcLinks = JSON.parse(JSON.stringify(ATLAS_DATA.links));
+
+    const nodes = srcNodes.filter(n => layerOn[LAYER[n.type]]);
+    const visible = new Set(nodes.map(n => n.id));
+    const links = srcLinks.filter(l => edgeOn[l.type] && visible.has(l.source) && visible.has(l.target));
+
+    hl.clear();
+    document.getElementById('info').style.display = 'none';
+    filteredNodes = nodes;
+    filteredLinks = links;
+    Graph.graphData({ nodes, links });
+  }
+
+  function setHighlight(centerId) {
+    hl.clear();
+    if (centerId) {
+      hl.add(centerId);
+      filteredLinks.forEach(l => {
+        const s = idOf(l.source), t = idOf(l.target);
+        if (s === centerId) hl.add(t);
+        if (t === centerId) hl.add(s);
+      });
+    }
+    Graph.nodeColor(Graph.nodeColor());
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
+  function showInfo(n) {
+    const info = document.getElementById('info');
+    let html = `<b>${escapeHtml(n.label)}</b>`
+      + `<div style="color:#8b949e;margin:4px 0 8px">${TYPE_LABEL[n.type] || n.type}</div>`;
+    if (n.type === 'concept') {
+      html += `<div>${escapeHtml(n.def || '(정의 없음)')}</div>`;
+    } else if (n.type === 'note') {
+      html += `<div>상태: ${escapeHtml(n.status || '-')}</div>`
+        + `<div>경로: ${escapeHtml(n.path || '-')}</div>`;
+    } else if (n.type === 'chapter') {
+      const p = n.progress || {};
+      html += `<div>진행: ${p.done ?? 0} / ${p.total ?? 0}</div>`;
+    }
+    info.innerHTML = html;
+    info.style.display = 'block';
+  }
+
+  const el = document.getElementById('graph');
+  const Graph = ForceGraph3D()(el)
+    .backgroundColor('#0e1117')
+    .nodeLabel(n => n.label)
+    .nodeVal(nodeVal)
+    .nodeColor(n => (hl.size && !hl.has(n.id)) ? '#30363d' : (n.status === 'draft' ? COLORS.note + '59' : COLORS[n.type]))
+    .linkWidth(l => l.type === 'covers' ? 2 : 1)
+    .linkColor(l => ({ toc: '#8b949e', covers: '#4ecdc4', mentions: '#4ecdc466', related: '#b085f5', 'note-link': '#4ecdc4aa' })[l.type])
+    .onNodeHover(n => setHighlight(n ? n.id : null))
+    .onNodeClick(n => {
+      const v = ATLAS_DATA.book.vault;
+      if (n.path && v) {
+        location.href = 'obsidian://open?vault=' + encodeURIComponent(v) + '&file=' + encodeURIComponent(n.path.replace(/\.md$/, ''));
+      } else if (n.type === 'concept' && v) {
+        location.href = 'obsidian://open?vault=' + encodeURIComponent(v) + '&file=' + encodeURIComponent('_glossary');
+      } else {
+        showInfo(n);
+      }
+    });
+
+  ['layer-toc', 'layer-concepts', 'edge-toc', 'edge-covers', 'edge-mentions', 'edge-related', 'edge-note-link'].forEach(id => {
+    document.getElementById(id).addEventListener('change', applyFilters);
+  });
+
+  document.getElementById('search').addEventListener('input', e => {
+    const q = e.target.value.trim().toLowerCase();
+    if (!q) { setHighlight(null); return; }
+    const match = filteredNodes.find(n => (n.label || '').toLowerCase().includes(q));
+    if (!match) return;
+    setHighlight(match.id);
+    if (typeof match.x === 'number') {
+      Graph.cameraPosition(
+        { x: match.x * 1.4, y: match.y * 1.4, z: match.z * 1.4 },
+        match,
+        800
+      );
+    }
+  });
+
+  applyFilters();
+</script></body></html>
