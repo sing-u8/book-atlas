@@ -217,7 +217,7 @@ def main():
     book_title = manifest_kv.get('book_title') or config.get('book_title', '')
     vault_name = config.get('vault_name', '')
 
-    # --- 1차 수집: 절 노트 원본(프런트매터·본문 구간)을 먼저 모아 note_index 를 만든다 ---
+    # --- 1차 수집: 절 노트 원본(프런트매터·본문 구간)을 먼저 모아 인덱스 두 개를 만든다 ---
     note_paths = sorted(root.glob('**/chapter-*/[0-9]*.md'))
     raw_notes = []
     for p in note_paths:
@@ -236,10 +236,25 @@ def main():
             'conn_text': extract_section(above, '연결'),
         })
 
-    # x.md 존재 검사 대상 = 수집된 절 노트 전체(그래프의 note 노드 전집과 동일)
-    note_index = {}
+    # 수집된 절 노트(그래프의 note 노드 전집) — note-link 엣지의 대상(경로) 해석용.
+    collected_notes = {}
     for n in raw_notes:
-        note_index.setdefault(n['stem'], n['relpath'])
+        collected_notes.setdefault(n['stem'], n['relpath'])
+
+    # [[x]] 가 "노트"인지 판정하는 전집. check-note.sh 의
+    # `find "$VROOT" -name "$t.md" -not -path '*/graph/*'` 와 동일 규칙 —
+    # vault 전체(graph/ 제외)에 x.md 가 존재하면 노트로 분류한다(대조: 이
+    # 판정을 collected_notes 로 좁히면 vault 안에 실재하지만 노드가 없는
+    # .md 로 가는 링크를 "개념"으로 오분류해 경고 ①이 잘못 발동한다 — gate
+    # 스크립트와의 분류 불일치였다. collected_notes 보다 넓을 수 있으며,
+    # "노트로 분류되지만 그래프 노드가 없는" 이름은 아래 엣지 생성부에서
+    # collected_notes 대조 시 엣지도 경고도 없이 조용히 건너뛴다).
+    vault_md_stems = set()
+    for p in root.rglob('*.md'):
+        rel = p.relative_to(root)
+        if 'graph' in rel.parts[:-1]:
+            continue
+        vault_md_stems.add(p.stem)
 
     nodes = []
     node_ids = set()
@@ -317,10 +332,13 @@ def main():
             add_link(note_id, concept_id, 'covers')
             covers_pairs.add((note_id, concept_id))
 
-        # mentions: 본문(연결 포함) 의 개념 링크 — covers 와 같은 쌍이면 생략
+        # mentions: 본문(연결 포함) 의 개념 링크 — covers 와 같은 쌍이면 생략.
+        # 노트 분류는 vault_md_stems(전역 규칙) 기준 — collected_notes 로
+        # 좁히면 실재하지만 미수집인 .md 로 가는 링크가 개념으로 잘못
+        # 떨어져 경고 ①이 오발동한다(fix round 1).
         for name in dict.fromkeys(wiki_links(n['above'])):
-            if name in note_index:
-                continue  # 노트 링크 — note-link 쪽(연결 섹션 한정)에서 처리
+            if name in vault_md_stems:
+                continue  # 노트 링크(수집 여부 무관) — 엣지·경고 대상 아님
             referenced_concepts.add(name)
             if name not in glossary_slugs:
                 warn(f"{note_id} 의 [[{name}]] 은(는) 용어집에 없는 개념 참조")
@@ -330,11 +348,15 @@ def main():
                 continue
             add_link(note_id, concept_id, 'mentions')
 
-        # note-link: `## 연결` 의 노트 링크만, 무방향
+        # note-link: `## 연결` 의 노트 링크만, 무방향. vault_md_stems 로 노트
+        # 분류를 확인한 뒤, collected_notes(그래프 노드 실재) 에 없으면
+        # 댕글링 참조를 막기 위해 엣지 없이(경고도 없이) 건너뛴다.
         for name in dict.fromkeys(wiki_links(n['conn_text'])):
-            if name not in note_index:
-                continue
-            target_id = f'note:{note_index[name]}'
+            if name not in vault_md_stems:
+                continue  # 개념 링크 — mentions 쪽(above 전체)에서 이미 처리됨
+            if name not in collected_notes:
+                continue  # 노트로 분류되나 그래프 노드가 없음 — 조용히 스킵
+            target_id = f'note:{collected_notes[name]}'
             a, b = sorted([note_id, target_id])
             add_link(a, b, 'note-link')
 
