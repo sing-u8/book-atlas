@@ -9,6 +9,11 @@ expect() {
   if [ "$got" -eq "$want" ]; then pass=$((pass+1)); echo "PASS  $desc"
   else fail=$((fail+1)); echo "FAIL  $desc (want $want got $got)"; fi
 }
+expect_out() {  # expect_out <패턴> <설명> -- <명령...> — 종료코드가 아니라 출력 내용을 본다
+  local pat="$1"; local desc="$2"; shift 2; [ "$1" = "--" ] && shift
+  if "$@" 2>&1 | grep -q "$pat"; then pass=$((pass+1)); echo "PASS  $desc"
+  else fail=$((fail+1)); echo "FAIL  $desc (출력에 '$pat' 없음)"; fi
+}
 
 expect 0 "check-note: 통과 노트"        -- "$S/check-note.sh" "$F/vault/chapter-01-intro/01-what-is-retrieval.md"
 expect 0 "check-note: draft 노트도 통과" -- "$S/check-note.sh" "$F/vault/chapter-01-intro/02-ranking.md"
@@ -54,5 +59,28 @@ expect 0 "hook: atlas 노트에 게이트 실행" -- bash -c \
   'printf "{\"tool_input\":{\"file_path\":\"%s\"}}" "$1" | "$2"' _ "$note" "$S/check-note-hook.sh"
 expect 0 "hook: 비대상 파일은 무시" -- bash -c \
   'printf "{\"tool_input\":{\"file_path\":\"/tmp/readme.md\"}}" | "$1"' _ "$S/check-note-hook.sh"
+
+# --- SKILL-001 선언 연속성 — coverage 표 1 의 책 쪽 구간에 구멍이 있으면 잡는다 ---
+# 처음부터 깨진 챕터를 새로 만들면 필수 파일·고아 노트 등 앞선 검사가 먼저
+# 걸려 원인 추적이 어려워진다. 이미 통과하는 chapter-01-intro 를 복사한
+# 뒤 _coverage.md 의 책 쪽 구간만 구멍이 생기게 바꿔, 이 검사만 실패하는
+# 깨끗한 시험으로 만든다. 원본 행("2–4","5–8" 연속)의 구분자를 그대로
+# 재사용해 "3–5","8–10" 으로 바꾸면 6–7 쪽이 어느 행에도 안 걸린다.
+DASH=$(printf '\xe2\x80\x93')  # en dash(U+2013) — coverage 표기와 같은 구분자
+tmp=$(mktemp -d)
+mkdir -p "$tmp/vault"
+cp -R "$F/vault/chapter-01-intro" "$tmp/vault/chapter-01-intro"
+cp "$F/vault/_glossary.md" "$tmp/vault/_glossary.md"
+python3 - "$tmp/vault/chapter-01-intro/_coverage.md" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+d = re.search(r"2(.)4", s).group(1)
+s = s.replace("2" + d + "4", "3" + d + "5").replace("5" + d + "8", "8" + d + "10")
+open(p, "w", encoding="utf-8").write(s)
+PY
+expect 2 "check-chapter: 선언 구멍이 있으면 exit 2" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+expect_out "6${DASH}7" "check-chapter: 선언 구멍(6-7쪽)을 잡는다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+rm -rf "$tmp"
 
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]

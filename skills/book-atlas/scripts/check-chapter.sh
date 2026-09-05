@@ -175,6 +175,41 @@ else
   if [ -n "$gate_err" ]; then bad "노트 게이트 오류(exit 1):$gate_err"; fi
 fi
 
+# --- 6) 선언 연속성 — coverage 구간이 챕터를 빈틈없이 덮는가 (SKILL-001) ---
+# 표기 정규화: 괄호 주석 제거 → 남은 숫자의 첫/끝을 시작/끝으로.
+# 예) "371(14행)–375(11행)" → 371 375 · "284(상단)" → 284 284
+gaps=""
+prev_end=""
+ranges=$(grep -E '^\| *[0-9]' "$COV" \
+  | sed -e 's/|/\t/g' \
+  | cut -f2 \
+  | sed -e 's/([^)]*)//g' -e 's/[^0-9]\{1,\}/ /g' -e 's/^ *//' -e 's/ *$//' \
+  | awk 'NF{ if (NF==1) print $1, $1; else print $1, $NF }' \
+  | sort -n -k1,1)
+
+while read -r s e; do
+  [ -z "$s" ] && continue
+  if [ -n "$prev_end" ]; then
+    expect=$((prev_end + 1))
+    if [ "$s" -gt "$expect" ]; then
+      if [ "$s" -eq "$((expect + 1))" ]; then
+        gaps="$gaps $expect"
+      else
+        gaps="$gaps $expect–$((s - 1))"
+      fi
+    fi
+  fi
+  [ -z "$prev_end" ] || [ "$e" -gt "$prev_end" ] && prev_end="$e"
+done <<EOF
+$ranges
+EOF
+
+if [ -n "$gaps" ]; then
+  bad "선언 구간에 구멍:$gaps 쪽 — 어느 노트도 이 쪽을 선언하지 않는다"
+else
+  ok "선언 구간이 챕터를 덮음"
+fi
+
 if [ "$FAILED" -eq 0 ]; then
   echo "check-chapter: PASS  $DIR"
   exit 0
