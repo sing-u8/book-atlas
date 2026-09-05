@@ -137,15 +137,50 @@ rm -rf "$tmp"
 # --- SKILL-003 basename 모호성 (check-chapter.sh) ---
 # 같은 이름 노트가 vault 안에 여러 개면 경로 없는 [[04-summary]] 같은 링크가
 # 어느 쪽을 가리키는지 알 수 없다 — 경고만 하고 종료코드는 바꾸지 않는다.
-# p/chapter-03-y 와 p/chapter-06-z 에 같은 이름(04-summary)의 노트를 두고,
-# chapter-06-z/01-x.md 가 경로 없이 그 이름을 링크하게 한다.
+# p/chapter-03-y 와 p/chapter-07-w 에 같은 이름(04-summary)의 노트를 두고,
+# 그 이름의 파일이 자기 폴더에 없는 p/chapter-06-z 가 경로 없이 그 이름을
+# 링크하게 한다. [R14-② 반영] 링크한 폴더 자신에 그 이름 파일이 있으면
+# 경고하지 않으므로, 진짜 모호성을 시험하려면 링크한 폴더에는 반드시
+# 그 파일이 없어야 한다 — 그래서 두 번째 사본을 chapter-06-z 가 아니라
+# 별도의 chapter-07-w 에 둔다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/v/p/chapter-03-y" "$tmp/v/p/chapter-06-z" "$tmp/v/p/chapter-07-w"
+echo '## d' > "$tmp/v/_glossary.md"
+printf '# a\n' > "$tmp/v/p/chapter-03-y/04-summary.md"
+printf '# b\n' > "$tmp/v/p/chapter-07-w/04-summary.md"
+printf '# c\n\n[[04-summary]]\n' > "$tmp/v/p/chapter-06-z/01-x.md"
+expect_out "모호한 링크" "check-chapter: 모호한 basename 링크를 경고한다(SKILL-003)" -- "$S/check-chapter.sh" "$tmp/v/p/chapter-06-z"
+rm -rf "$tmp"
+
+# --- SKILL-003 R14-① _ 로 시작하는 링크는 경고하지 않는다 ---
+# _coverage·_chapter·_glossary 같은 스킬 내부 파일은 같은 이름이 여러 장에
+# 있는 게 설계상 정상이다(장마다 하나씩) — 노트가 아니므로 모호성 경고
+# 대상이 아니다. expect_out 은 "패턴이 있으면 통과" 라 부재 확인엔 안 맞아
+# 여기서는 부재를 직접 검사하는 bash -c 조합을 쓴다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/v/p/chapter-03-y" "$tmp/v/p/chapter-06-z"
+echo '## d' > "$tmp/v/_glossary.md"
+printf '# a\n' > "$tmp/v/p/chapter-03-y/_x.md"
+printf '# b\n' > "$tmp/v/p/chapter-06-z/_x.md"
+printf '# c\n\n[[_x]]\n' > "$tmp/v/p/chapter-06-z/01-y.md"
+expect 0 "check-chapter: _ 접두 링크는 경고하지 않는다(SKILL-003 R14-①)" -- \
+  bash -c '! "$1" "$2" 2>&1 | grep -q "모호한 링크"' _ "$S/check-chapter.sh" "$tmp/v/p/chapter-06-z"
+rm -rf "$tmp"
+
+# --- SKILL-003 R14-② 같은 폴더에 그 이름 파일이 있으면 경고하지 않는다 ---
+# 옵시디언은 같은 폴더를 먼저 해석한다 — 링크를 담은 노트의 폴더에 그 이름
+# 파일이 있으면 vault 전체에 같은 이름이 더 있어도 모호하지 않다.
+# chapter-06-z 자신에 04-summary.md 가 있고, chapter-06-z/01-x.md 가 경로
+# 없이 [[04-summary]] 를 링크한다 — 같은 이름이 chapter-03-y 에도 있어
+# vault 전체 개수는 2 지만, 같은 폴더 자기참조이므로 경고하지 않아야 한다.
 tmp=$(mktemp -d)
 mkdir -p "$tmp/v/p/chapter-03-y" "$tmp/v/p/chapter-06-z"
 echo '## d' > "$tmp/v/_glossary.md"
 printf '# a\n' > "$tmp/v/p/chapter-03-y/04-summary.md"
 printf '# b\n' > "$tmp/v/p/chapter-06-z/04-summary.md"
 printf '# c\n\n[[04-summary]]\n' > "$tmp/v/p/chapter-06-z/01-x.md"
-expect_out "모호한 링크" "check-chapter: 모호한 basename 링크를 경고한다(SKILL-003)" -- "$S/check-chapter.sh" "$tmp/v/p/chapter-06-z"
+expect 0 "check-chapter: 같은 폴더에 그 이름 파일이 있으면 경고하지 않는다(SKILL-003 R14-②)" -- \
+  bash -c '! "$1" "$2" 2>&1 | grep -q "모호한 링크"' _ "$S/check-chapter.sh" "$tmp/v/p/chapter-06-z"
 rm -rf "$tmp"
 
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]

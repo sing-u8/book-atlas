@@ -239,6 +239,23 @@ for _i in 1 2 3 4; do
 done
 [ -n "$VROOT" ] || VROOT="$DIR"
 
+# [R14-①] _ 로 시작하는 target(_coverage·_chapter·_glossary 등)은 노트가
+# 아니라 스킬 내부 파일 표시다 — check-note.sh 의 resolve_term() 도 같은
+# 근거로 _* 를 건너뛴다. 모든 챕터의 _chapter.md 가 자기 챕터의
+# [[_coverage]] 를 가리키는 관용구를 반복해 장 수만큼(실볼트 기준 7건)
+# 거짓 경고를 냈다.
+# bash 3.2 노트: 이 case 문은 check-note.sh 의 resolve_term() 과 같은
+# 이유로 반드시 $(...) 명령 치환 "밖"의 함수여야 한다 — 이 bash 빌드는
+# case 안의 괄호 있는 패턴(예: _*) )을 $(...) 안에 직접 두면 그 ')'를
+# 명령 치환의 닫는 괄호로 잘못 세어 "syntax error near unexpected token
+# `;;'"를 낸다. 함수로 빼서 밖에서 정의하고 안에서는 호출만 한다.
+is_internal_ref() {
+  case "$1" in
+    _*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # [주의] 경고를 루프 안에서 바로 `>&2` 로 내고 그 루프 전체를 `| sort -u`
 # 로 파이프하면 stderr 는 파이프를 안 타므로 sort -u 에는 아무 입력도 안
 # 들어가고, 경고는 중복된 채(같은 basename 을 여러 노트가 링크하면 그만큼)
@@ -251,6 +268,12 @@ ambig_warn=$(
       | sed -e 's/^\[\[//' -e 's/\]\]$//' \
       | while read -r base; do
           [ -z "$base" ] && continue
+          is_internal_ref "$base" && continue
+          # [R14-②] 링크를 담은 노트의 폴더(=이 스크립트가 보는 $DIR)에 그
+          # 이름의 파일이 있으면 옵시디언은 같은 폴더를 먼저 해석해 그
+          # 파일로 간다 — 모호하지 않다. vault 전체 개수만 보면 이런
+          # "같은 폴더 자기참조"까지 모호하다고 잘못 판단한다.
+          [ -f "$DIR/$base.md" ] && continue
           n=$(find "$VROOT" -name "$base.md" -not -path '*/graph/*' 2>/dev/null | wc -l | tr -d ' ')
           if [ "$n" -gt 1 ]; then
             echo "  WARN 모호한 링크 [[$base]] — 같은 이름 노트 ${n}개. 경로를 붙여라"
