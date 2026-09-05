@@ -20,6 +20,8 @@ def config(vault):
             pdf = line.split(':', 1)[1].strip()
         elif line.startswith('- page_offset:'):
             off = int(line.split(':', 1)[1].split('#')[0].strip())
+    if pdf is None:
+        return None, off
     return os.path.normpath(os.path.join(vault, pdf)), off
 
 
@@ -41,34 +43,39 @@ def extract(pdf, first, last):
 def candidates(lines):
     """(종류, 표시문자열, 탐침목록) 목록을 낸다."""
     found = []
-    for line in lines:
+    for idx, line in enumerate(lines):
         if not line.strip():
             continue
         indent = len(line) - len(line.lstrip())
         text = line.strip()
         m = CAPTION.search(text)
         if m:
-            found.append(('캡션', f"{m.group(1)} {m.group(2)}", [m.group(2)]))
+            found.append(('캡션', f"{m.group(1)} {m.group(2)}", [m.group(2)], idx))
             continue
         if indent >= 15:
             probes = [w for w in re.findall(r'[A-Z][\w.\-]{2,}|[a-z_]+\(\)|\d+[\w-]*', text)
                       if w.lower() not in STOP]
             if probes:
-                found.append(('콜아웃', text[:60], probes[:4]))
+                found.append(('콜아웃', text[:60], probes[:4], idx))
             else:
-                found.append(('콜아웃', text[:60], []))
+                found.append(('콜아웃', text[:60], [], idx))
         elif indent == 0 and len(text) <= 60 and not text.endswith('.') \
                 and text[0].isupper() and len(text.split()) <= 7:
-            found.append(('표제', text, [text]))
-    # 같은 표시문자열이 이어지면 하나로 접는다(콜아웃은 여러 줄이다)
+            found.append(('표제', text, [text], idx))
+    # 콜아웃이 이어지면 하나로 접는다(콜아웃은 여러 줄이다) — 단, 원문에서 실제로
+    # 인접한(빈 줄 하나 정도 차이) 줄끼리만. found 는 후보에 안 걸려 건너뛴 줄을
+    # 그냥 스킵하므로, 원문 인덱스를 안 보면 열 줄 떨어진 별개 콜아웃도 "바로 옆"
+    # 으로 보여 잘못 합쳐진다.
+    ADJACENT = 2
     merged, prev = [], None
-    for kind, label, probes in found:
-        if kind == '콜아웃' and prev and prev[0] == '콜아웃':
+    for kind, label, probes, idx in found:
+        if kind == '콜아웃' and prev and prev[0] == '콜아웃' and idx - prev[3] <= ADJACENT:
             prev[2].extend(probes)
+            prev[3] = idx
             continue
-        prev = [kind, label, list(probes)]
+        prev = [kind, label, list(probes), idx]
         merged.append(prev)
-    return merged
+    return [(kind, label, probes) for kind, label, probes, _ in merged]
 
 
 def main(argv):
@@ -85,10 +92,16 @@ def main(argv):
         print("audit-delivery: vault 루트를 못 찾음", file=sys.stderr)
         return 1
 
-    pdf, off = config(vault)
     cov = os.path.join(chdir, '_coverage.md')
     if not os.path.isfile(cov):
-        print(f"audit-delivery: _coverage.md 없음: {cov}", file=sys.stderr)
+        # 아직 착수 안 한 챕터의 정상 상태다 — 검사할 게 없을 뿐 오류가 아니다.
+        print(f"audit-delivery: _coverage.md 없음(검사 대상 없음, 건너뜀): {cov}", file=sys.stderr)
+        return 0
+
+    pdf, off = config(vault)
+    if not pdf:
+        print(f"audit-delivery: {os.path.join(vault, '_global', 'config.md')} 에 "
+              "source_pdf 줄이 없음", file=sys.stderr)
         return 1
 
     ok, miss, unknown = [], [], []
