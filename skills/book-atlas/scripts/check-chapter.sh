@@ -178,36 +178,49 @@ fi
 # --- 6) 선언 연속성 — coverage 구간이 챕터를 빈틈없이 덮는가 (SKILL-001) ---
 # 표기 정규화: 괄호 주석 제거 → 남은 숫자의 첫/끝을 시작/끝으로.
 # 예) "371(14행)–375(11행)" → 371 375 · "284(상단)" → 284 284
-gaps=""
-prev_end=""
-ranges=$(grep -E '^\| *[0-9]' "$COV" \
-  | sed -e 's/|/\t/g' \
-  | cut -f2 \
-  | sed -e 's/([^)]*)//g' -e 's/[^0-9]\{1,\}/ /g' -e 's/^ *//' -e 's/ *$//' \
-  | awk 'NF{ if (NF==1) print $1, $1; else print $1, $NF }' \
-  | sort -n -k1,1)
+# [review round 2] ranges 추출을 '## 1.' 절 안으로 한정한다 — 그러지
+# 않으면 '## 2. 코드·예제 커버리지' 표에 숫자로 시작하는 행이 생겼을 때
+# 그 행까지 섞여 거짓양성(멀쩡한 챕터를 막음)·거짓음성(진짜 구멍을 놓침)
+# 을 낸다. 다음 '## ' 헤더를 만나면 절이 끝난 것으로 본다.
+# [fix R10] coverage 자체가 없으면(검사 1 이 이미 실패시킴) ok 도 bad 도
+# 찍지 않는다 — 아무것도 못 본 채 통과를 주장하지 않기 위해서다.
+if [ -f "$COV" ]; then
+  gaps=""
+  prev_end=""
+  ranges=$(awk '
+      /^## 1\./ { insec=1; next }
+      insec && /^## / { insec=0 }
+      insec
+    ' "$COV" \
+    | grep -E '^\| *[0-9]' \
+    | sed -e 's/|/\t/g' \
+    | cut -f2 \
+    | sed -e 's/([^)]*)//g' -e 's/[^0-9]\{1,\}/ /g' -e 's/^ *//' -e 's/ *$//' \
+    | awk 'NF{ if (NF==1) print $1, $1; else print $1, $NF }' \
+    | sort -n -k1,1)
 
-while read -r s e; do
-  [ -z "$s" ] && continue
-  if [ -n "$prev_end" ]; then
-    expect=$((prev_end + 1))
-    if [ "$s" -gt "$expect" ]; then
-      if [ "$s" -eq "$((expect + 1))" ]; then
-        gaps="$gaps $expect"
-      else
-        gaps="$gaps $expect–$((s - 1))"
+  while read -r s e; do
+    [ -z "$s" ] && continue
+    if [ -n "$prev_end" ]; then
+      expect=$((prev_end + 1))
+      if [ "$s" -gt "$expect" ]; then
+        if [ "$s" -eq "$((expect + 1))" ]; then
+          gaps="$gaps $expect"
+        else
+          gaps="$gaps $expect–$((s - 1))"
+        fi
       fi
     fi
-  fi
-  [ -z "$prev_end" ] || [ "$e" -gt "$prev_end" ] && prev_end="$e"
-done <<EOF
+    [ -z "$prev_end" ] || [ "$e" -gt "$prev_end" ] && prev_end="$e"
+  done <<EOF
 $ranges
 EOF
 
-if [ -n "$gaps" ]; then
-  bad "선언 구간에 구멍:$gaps 쪽 — 어느 노트도 이 쪽을 선언하지 않는다"
-else
-  ok "선언 구간이 챕터를 덮음"
+  if [ -n "$gaps" ]; then
+    bad "선언 구간에 구멍:$gaps 쪽 — 어느 노트도 이 쪽을 선언하지 않는다"
+  else
+    ok "선언 구간이 챕터를 덮음"
+  fi
 fi
 
 if [ "$FAILED" -eq 0 ]; then

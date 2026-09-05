@@ -83,4 +83,34 @@ expect 2 "check-chapter: 선언 구멍이 있으면 exit 2" -- "$S/check-chapter
 expect_out "6${DASH}7" "check-chapter: 선언 구멍(6-7쪽)을 잡는다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
 rm -rf "$tmp"
 
+# --- SKILL-001 리뷰 후속 — ranges 추출이 '## 1.' 절에만 스코프되는지 ---
+# 표 2(코드·예제 커버리지)에 숫자로 시작하는 행이 섞이면 두 방향으로 틀릴
+# 수 있다: 표1 이 연속인데 표2 행이 끼면 거짓양성으로 멀쩡한 챕터를 막고,
+# 표1 에 진짜 구멍이 있는데 표2 행이 그 쪽번호를 채우면 거짓음성으로
+# 구멍을 놓친다. chapter-01-intro 를 복사해 표2 에 행을 추가해 두 방향
+# 다 확인한다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/vault"
+cp -R "$F/vault/chapter-01-intro" "$tmp/vault/chapter-01-intro"
+cp "$F/vault/_glossary.md" "$tmp/vault/_glossary.md"
+printf '| 12 | 노트 예시 | 보강 없음 |\n' >> "$tmp/vault/chapter-01-intro/_coverage.md"
+expect 0 "check-chapter: 표2 숫자 행이 있어도 표1 이 연속이면 통과(거짓양성 방지)" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+rm -rf "$tmp"
+
+tmp=$(mktemp -d)
+mkdir -p "$tmp/vault"
+cp -R "$F/vault/chapter-01-intro" "$tmp/vault/chapter-01-intro"
+cp "$F/vault/_glossary.md" "$tmp/vault/_glossary.md"
+python3 - "$tmp/vault/chapter-01-intro/_coverage.md" <<'PY'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+d = re.search(r"2(.)4", s).group(1)
+s = s.replace("2" + d + "4", "3" + d + "5").replace("5" + d + "8", "8" + d + "10")
+open(p, "w", encoding="utf-8").write(s)
+PY
+printf '| 6 | 노트 예시 | 보강 없음 |\n| 7 | 노트 예시 | 보강 없음 |\n' >> "$tmp/vault/chapter-01-intro/_coverage.md"
+expect_out "6${DASH}7" "check-chapter: 표2 에 6·7 행이 있어도 구멍을 잡는다(거짓음성 방지)" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+rm -rf "$tmp"
+
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]
