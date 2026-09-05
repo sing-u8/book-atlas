@@ -47,6 +47,7 @@
 | `language` | 대화·파일 본문 언어 |
 | `vault_name` | Obsidian vault 이름 — 그래프 클릭 시 `obsidian://` URI 에 그대로 들어간다 |
 | `source_pdf` | 원서 PDF 경로 (vault 기준 상대경로) |
+| `page_offset` *(선택)* | `audit-delivery.py` 가 읽는 오프셋 캐시(없으면 0 폴백) — 책 전체 단일 값만 담아 구간별 오프셋 변경은 표현 못 한다. 정본은 어디까지나 `source-manifest.md` 의 쪽 오프셋 표 |
 | 진행 위치 표 | 챕터별 상태(`진행 중`/`완료`)·다음에 정리할 절 |
 
 `vault_name` 은 온보딩 때 사용자에게 **직접 묻는다** — 자동 추정하지 않는다.
