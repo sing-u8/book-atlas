@@ -518,10 +518,14 @@ Expected: 전부 `ok`, `run-tests: PASS`
 - [ ] **Step 6: 승격이 실제로 파일을 고치는지 확인한다**
 
 ```bash
-cd {vault}/_global/fixes/tests
-cp fixtures/reconcile-mixed.md /tmp/rm.md
-python3 ../reconcile.py /tmp/rm.md --promote
-grep -A1 '^### XC-101' /tmp/rm.md | tail -1
+# 사본은 반드시 볼트 안에 둔다 — vault_root() 가 _glossary.md 를 위로 찾기 때문에
+# /tmp 로 복사하면 실행 위치를 못 찾아 모든 행이 '검증 실패' 로 떨어진다
+cd {vault}/_global/fixes
+cp tests/fixtures/reconcile-mixed.md ./tmp-check.md
+python3 reconcile.py ./tmp-check.md --promote
+grep -A5 '^### XC-101' ./tmp-check.md | grep 상태   # → 검증
+grep -A5 '^### XC-102' ./tmp-check.md | grep 상태   # → 적용 (그대로여야 한다)
+rm -f ./tmp-check.md
 ```
 Expected: 마지막 줄이 `- **상태** 검증` (XC-102 는 `적용` 그대로여야 한다)
 
