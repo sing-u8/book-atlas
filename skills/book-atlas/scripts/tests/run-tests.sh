@@ -134,4 +134,18 @@ PY
 expect 0 "check-note: 경로 붙은 링크를 통과시킨다(SKILL-002)" -- "$S/check-note.sh" "$tmp/vault/chapter-01-intro/01-what-is-retrieval.md"
 rm -rf "$tmp"
 
+# --- SKILL-003 basename 모호성 (check-chapter.sh) ---
+# 같은 이름 노트가 vault 안에 여러 개면 경로 없는 [[04-summary]] 같은 링크가
+# 어느 쪽을 가리키는지 알 수 없다 — 경고만 하고 종료코드는 바꾸지 않는다.
+# p/chapter-03-y 와 p/chapter-06-z 에 같은 이름(04-summary)의 노트를 두고,
+# chapter-06-z/01-x.md 가 경로 없이 그 이름을 링크하게 한다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/v/p/chapter-03-y" "$tmp/v/p/chapter-06-z"
+echo '## d' > "$tmp/v/_glossary.md"
+printf '# a\n' > "$tmp/v/p/chapter-03-y/04-summary.md"
+printf '# b\n' > "$tmp/v/p/chapter-06-z/04-summary.md"
+printf '# c\n\n[[04-summary]]\n' > "$tmp/v/p/chapter-06-z/01-x.md"
+expect_out "모호한 링크" "check-chapter: 모호한 basename 링크를 경고한다(SKILL-003)" -- "$S/check-chapter.sh" "$tmp/v/p/chapter-06-z"
+rm -rf "$tmp"
+
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]

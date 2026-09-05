@@ -223,6 +223,43 @@ EOF
   fi
 fi
 
+# --- 7) basename 모호성 경고 (SKILL-003) — 종료코드는 바꾸지 않는다 ---
+# 같은 이름 노트가 vault 안에 여러 개면(예: 04-summary 가 3·6·7장에) 경로
+# 없는 [[04-summary]] 는 그중 어느 것을 가리키는지 알 수 없다. 이건 검사 6
+# 처럼 "표 1 이 있을 때만" 성립하는 조건이 아니라 챕터 안 아무 노트나
+# _chapter.md 가 [[bareword]] 를 쓰기만 하면 성립하는 별개 조건이므로,
+# 검사 6 의 `if [ -f "$COV" ]` 가드 밖의 독립된 블록으로 둔다.
+# check-chapter.sh 에는 check-note.sh 의 VROOT 가 없다 — 같은 방식으로
+# _glossary.md 를 위로 최대 4단계까지 찾아 vault 루트로 잡는다.
+VROOT=""
+_d="$DIR"
+for _i in 1 2 3 4; do
+  _d="$_d/.."
+  if [ -f "$_d/_glossary.md" ]; then VROOT="$(cd "$_d" && pwd)"; break; fi
+done
+[ -n "$VROOT" ] || VROOT="$DIR"
+
+# [주의] 경고를 루프 안에서 바로 `>&2` 로 내고 그 루프 전체를 `| sort -u`
+# 로 파이프하면 stderr 는 파이프를 안 타므로 sort -u 에는 아무 입력도 안
+# 들어가고, 경고는 중복된 채(같은 basename 을 여러 노트가 링크하면 그만큼)
+# 그대로 화면에 흘러나온다. 그래서 경고를 먼저 stdout 으로 모아 sort -u 를
+# 거치게 하고, 그 결과만 마지막에 한 번 stderr 로 내보낸다.
+ambig_warn=$(
+  for note in "$DIR"/*.md; do
+    [ -f "$note" ] || continue
+    grep -oE '\[\[[^]|#/]+\]\]' "$note" 2>/dev/null \
+      | sed -e 's/^\[\[//' -e 's/\]\]$//' \
+      | while read -r base; do
+          [ -z "$base" ] && continue
+          n=$(find "$VROOT" -name "$base.md" -not -path '*/graph/*' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$n" -gt 1 ]; then
+            echo "  WARN 모호한 링크 [[$base]] — 같은 이름 노트 ${n}개. 경로를 붙여라"
+          fi
+        done
+  done | sort -u
+)
+[ -n "$ambig_warn" ] && printf '%s\n' "$ambig_warn" >&2
+
 if [ "$FAILED" -eq 0 ]; then
   echo "check-chapter: PASS  $DIR"
   exit 0
