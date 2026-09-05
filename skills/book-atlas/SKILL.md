@@ -102,6 +102,8 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 1. **위치 확인** — `_global/config.md` 의 진행 위치 표를 읽고 이번 단위(챕터 또는
    이어서 할 절)를 확정한다. `source-manifest.md` 도 다시 읽되 `사용자수정` 행은
    재파싱 제안 대상에서 뺀다(하드 룰 3).
+   > `source_pdf` 파일이 실제로 존재하는지 확인한다. 없거나 이름이 다르면 `toc-pipeline.md` §4 의
+   > **PDF 교체 절차**를 먼저 밟는다.
 2. **새 챕터면** — `_coverage.md` 를 만들고 표 1의 **왼쪽 세 열**(책 쪽·PDF 쪽·원문
    절)을 먼저 채운다 → 그 **직후, 노트를 하나라도 쓰기 전에**
    `toc-pipeline.md` §9 의 **분할·병합 규칙**을 적용한다(어느 스크립트도 검사하지
