@@ -113,4 +113,25 @@ printf '| 6 | 노트 예시 | 보강 없음 |\n| 7 | 노트 예시 | 보강 없�
 expect_out "6${DASH}7" "check-chapter: 표2 에 6·7 행이 있어도 구멍을 잡는다(거짓음성 방지)" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
 rm -rf "$tmp"
 
+# --- SKILL-002 경로 붙은 링크 (check-note.sh) ---
+# 노트를 손으로 새로 쓰면 게이트 7종(frontmatter 7키·H2 6개·도표·연결 2개·
+# 용어 대조·코드펜스 짝수·구분자)을 전부 통과해야 해서 SKILL-002 와 무관한
+# 이유로 실패하기 쉽다. 이미 통과하는 01-what-is-retrieval.md 를 복사해
+# "## 연결" 바로 아래에 경로 붙은 링크 한 줄만 추가한다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/vault"
+cp -R "$F/vault/chapter-01-intro" "$tmp/vault/chapter-01-intro"
+cp "$F/vault/_glossary.md" "$tmp/vault/_glossary.md"
+python3 - "$tmp/vault/chapter-01-intro/01-what-is-retrieval.md" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+old = "## 연결\n\n"
+new = old + "- [[chapter-01-intro/02-ranking]] — 경로 붙은 링크(SKILL-002)\n"
+assert old in s, "고정 앵커를 못 찾음 — 픽스처가 바뀌었는지 확인"
+open(p, "w", encoding="utf-8").write(s.replace(old, new, 1))
+PY
+expect 0 "check-note: 경로 붙은 링크를 통과시킨다(SKILL-002)" -- "$S/check-note.sh" "$tmp/vault/chapter-01-intro/01-what-is-retrieval.md"
+rm -rf "$tmp"
+
 echo "---"; echo "pass=$pass fail=$fail"; [ "$fail" -eq 0 ]

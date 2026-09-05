@@ -176,9 +176,27 @@ if [ "$fence_ok" -eq 1 ]; then
   term_miss=""
   while IFS= read -r t; do
     [ -z "$t" ] && continue
-    if [ -n "$(find "$VROOT" -name "$t.md" -not -path '*/graph/*' 2>/dev/null)" ]; then
-      continue
-    fi
+    # $t 에 슬래시가 있으면(경로 붙은 링크, 예: part-1-x/chapter-03-y/04-summary)
+    # find -name "$t.md" 는 basename 만 매칭하므로 슬래시 있는 패턴과 절대
+    # 매치될 수 없다 — 반드시 실패한다. 슬래시가 있으면 경로로 직접 확인하는
+    # 쪽으로 분기한다(SKILL-002).
+    case "$t" in
+      */*)
+        # 경로 붙은 링크: vault 루트 기준 경로로 직접 확인한다.
+        if [ -f "$VROOT/$t.md" ]; then
+          continue
+        fi
+        # vault 루트 기준이 아니면 꼬리 조각으로 한 번 더 찾는다.
+        if [ -n "$(find "$VROOT" -path "*/$t.md" -not -path '*/graph/*' 2>/dev/null)" ]; then
+          continue
+        fi
+        ;;
+      *)
+        if [ -n "$(find "$VROOT" -name "$t.md" -not -path '*/graph/*' 2>/dev/null)" ]; then
+          continue
+        fi
+        ;;
+    esac
     if grep -qE "^## $t( |$)" "$VROOT/_glossary.md"; then
       continue
     fi
