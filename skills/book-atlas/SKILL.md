@@ -133,7 +133,13 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
    ```bash
    "<book-atlas-root>/scripts/check-chapter.sh" <챕터경로>
    ```
-   exit 0 을 확인한 뒤에만 `config.md` 진행 표를 `완료` 로 바꾼다.
+   exit 0 을 확인한 뒤에만 `config.md` 진행 표를 `완료` 로 바꾼다. 그 뒤 인도 누락을
+   훑는다.
+   ```bash
+   "<book-atlas-root>/scripts/audit-delivery.py" <챕터경로>
+   ```
+   `누락 의심` 목록을 확인한다 — 경고 전용(사용법 오류 아니면 항상 exit 0)이라 게이트는
+   아니다. `_coverage.md` 쪽번호가 실제 판본 기준일 때만 이 검사도 의미가 있다.
 6. **세션 종료 리추얼** — 아래. 빠뜨리고 세션을 끝내지 않는다.
 
 ### 세션 종료 리추얼 (하드 룰 10)
