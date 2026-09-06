@@ -195,6 +195,7 @@ if [ -f "$COV" ]; then
     | grep -E '^\| *[0-9]' \
     | sed -e 's/|/\t/g' \
     | cut -f2 \
+    | sed -E 's/[0-9]+([[:space:]]*(–|-)[[:space:]]*[0-9]+)*[[:space:]]*행//g' \
     | sed -e 's/([^)]*)//g' -e 's/[^0-9]\{1,\}/ /g' -e 's/^ *//' -e 's/ *$//' \
     | awk 'NF{ if (NF==1) print $1, $1; else print $1, $NF }' \
     | sort -n -k1,1)

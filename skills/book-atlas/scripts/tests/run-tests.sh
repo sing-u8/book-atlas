@@ -83,6 +83,41 @@ expect 2 "check-chapter: 선언 구멍이 있으면 exit 2" -- "$S/check-chapter
 expect_out "6${DASH}7" "check-chapter: 선언 구멍(6-7쪽)을 잡는다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
 rm -rf "$tmp"
 
+# --- SKILL-007 — 무괄호 "NN행" 표기에서 줄번호를 책쪽으로 오독하지 않는다 ---
+# 파서는 원래 줄번호를 괄호 안에서만 지웠다(`36(26행)–39(24행)` 은 정상).
+# ch03·ch04 처럼 괄호 없이 `2 27행–4 11행` 으로 쓰면 끝의 `11` 이 책쪽 끝으로
+# 둔갑해 실제로는 없는 구멍을 무더기로 보고했다(4장 14건·3장 1건, 전부 거짓 경보).
+# 아래는 그 표기에서 ①거짓 FAIL 이 안 나는지 ②그럼에도 진짜 구멍은 여전히
+# 잡는지를 양방향으로 확인한다 — ②가 없으면 "검사를 무력화해서 통과시킨" 것과
+# 구분되지 않는다.
+tmp=$(mktemp -d)
+mkdir -p "$tmp/vault"
+cp -R "$F/vault/chapter-01-intro" "$tmp/vault/chapter-01-intro"
+cp "$F/vault/_glossary.md" "$tmp/vault/_glossary.md"
+python3 - "$tmp/vault/chapter-01-intro/_coverage.md" <<'PY2'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+d = re.search(r"2(.)4", s).group(1)
+# 2–4 / 5–8 을 줄번호가 붙은 무괄호 표기로 바꾼다(범위 자체는 그대로 2–4·5–8)
+s = s.replace("| 2" + d + "4 |", "| 2 27행" + d + "4 11행 |")
+s = s.replace("| 5" + d + "8 |", "| 5 3행" + d + "8 19행 |")
+open(p, "w", encoding="utf-8").write(s)
+PY2
+expect 0 "check-chapter: 무괄호 NN행 표기를 거짓 FAIL 하지 않는다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+# 같은 표기에서 진짜 구멍을 뚫으면 여전히 잡아야 한다
+python3 - "$tmp/vault/chapter-01-intro/_coverage.md" <<'PY2'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+d = re.search(r"5 3행(.)8 19행", s).group(1)
+s = s.replace("| 5 3행" + d + "8 19행 |", "| 7 3행" + d + "8 19행 |")
+open(p, "w", encoding="utf-8").write(s)
+PY2
+expect 2 "check-chapter: 무괄호 표기에서도 진짜 구멍은 잡는다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+expect_out "5${DASH}6" "check-chapter: 그 구멍이 5-6쪽으로 보고된다" -- "$S/check-chapter.sh" "$tmp/vault/chapter-01-intro"
+rm -rf "$tmp"
+
 # --- SKILL-001 리뷰 후속 — ranges 추출이 '## 1.' 절에만 스코프되는지 ---
 # 표 2(코드·예제 커버리지)에 숫자로 시작하는 행이 섞이면 두 방향으로 틀릴
 # 수 있다: 표1 이 연속인데 표2 행이 끼면 거짓양성으로 멀쩡한 챕터를 막고,
