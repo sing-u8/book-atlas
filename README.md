@@ -7,14 +7,20 @@
 ## 설치 및 제거
 
 ```bash
-# 설치
-./install.sh
+# Codex에 설치
+./install.sh --codex
 
-# 제거
-./uninstall.sh
+# Claude Code에 설치(기존 기본 동작)
+./install.sh --claude
+
+# 두 호스트에 모두 설치
+./install.sh --all
 ```
 
-설치 후 `~/.claude/skills/book-atlas/SKILL.md`에서 `/book-atlas` 명령이 가능합니다.
+Codex 설치본은 `${CODEX_HOME:-$HOME/.codex}/skills/book-atlas/`, Claude Code 설치본은
+`~/.claude/skills/book-atlas/`에 놓입니다. Codex에서는 설치 다음 턴부터 자동으로
+발견되며, 명시적으로 호출하려면 `$book-atlas`를 사용합니다. 제거할 때도 같은 대상을
+`./uninstall.sh --codex|--claude|--all`로 지정합니다.
 
 ## 사용 흐름
 

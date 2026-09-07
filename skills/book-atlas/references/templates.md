@@ -144,6 +144,9 @@
 
 `concepts:` 와 본문의 `[[링크]]` 는 역할이 다르다 — 전자는 "중요하게 다룸"(굵은
 엣지 `covers`), 후자는 "언급"(얇은 엣지 `mentions`).
+`concepts:`의 각 항목은 `왜 이 절인가` 또는 `본문 정리`에서도 실제 설명과 함께
+링크한다. 개념 표에만 링크를 추가해 검사를 통과시키지 않는다. `check-quality.py`가
+이 연결과 `한눈에 보기`의 질문/답 2열을 검사한다.
 
 ### 필수 H2 6개 — 기계 검사 리터럴, 로컬라이즈하지 않는다
 
@@ -448,9 +451,10 @@ Claude Code 전용이라 Codex 분기가 없다.
 }
 ```
 
-`<book-atlas-root>` 는 SKILL.md 의 정의를 따른다 — 설치 후에는
-`$HOME/.claude/skills/book-atlas/`, 이 저장소 안에서 실행할 때는
-`skills/book-atlas/` (위 예시의 `command` 는 설치 후 기준).
+`<book-atlas-root>` 는 SKILL.md 의 정의를 따른다. 이 절은 Claude Code 전용이므로
+설치본은 `$HOME/.claude/skills/book-atlas/`, 저장소 안에서 실행할 때는
+`skills/book-atlas/` 다(위 예시의 `command` 는 설치 후 기준). Codex에서는 이 훅을
+설치하지 않는다.
 
 **소유권**: 사용자 소유(프로젝트 설정 파일) — 스킬은 온보딩 때 병합해 넣을 뿐
 기존 항목을 덮어쓰지 않는다.

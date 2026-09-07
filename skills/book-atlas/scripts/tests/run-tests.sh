@@ -24,6 +24,7 @@ expect 2 "check-note: 코드펜스 홀수"     -- "$S/check-note.sh" "$F/invalid
 expect 2 "check-note: 도표 없음"        -- "$S/check-note.sh" "$F/invalid/no-diagram.md"
 expect 2 "check-note: 구분자 없음"       -- "$S/check-note.sh" "$F/invalid/no-separator.md"
 expect 1 "check-note: 인자 없음"        -- "$S/check-note.sh"
+expect 0 "quality: 내용 누락 후보와 형식 오류 구분 회귀 검사" -- python3 "$HERE/test-quality.py"
 
 expect 0 "check-chapter: 통과 챕터"     -- "$S/check-chapter.sh" "$F/vault/chapter-01-intro"
 expect 2 "check-chapter: 누락 참조+고아" -- "$S/check-chapter.sh" "$F/chapter-bad"

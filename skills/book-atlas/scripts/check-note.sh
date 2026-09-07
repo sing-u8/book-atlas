@@ -207,7 +207,16 @@ EOF
   if [ -z "$term_miss" ]; then ok "용어 전수 대조"; else bad "용어집에 없음:$term_miss"; fi
 fi
 
-# --- 10) 최종 판정 ---
+# --- 10) 질문표·본문 개념 링크 + 최초 풀이 검토 후보 ---
+if [ "$fence_ok" -eq 1 ]; then
+  python3 "$(dirname "$0")/check-quality.py" "$NOTE"
+  quality_exit=$?
+  if [ "$quality_exit" -ne 0 ]; then
+    bad "품질 형식 검사 실패(exit $quality_exit) — 위 진단 확인"
+  fi
+fi
+
+# --- 11) 최종 판정 ---
 if [ "$FAILED" -eq 0 ]; then
   echo "check-note: PASS  $NOTE"
   exit 0

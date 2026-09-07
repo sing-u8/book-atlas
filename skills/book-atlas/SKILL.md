@@ -8,8 +8,6 @@ description: >
   "PDF 로 공부", "개념 그래프", "book atlas" 같은 요청을 하면 이 스킬을 쓴다.
   인출 훈련(퀴즈·꼬리질문·암기)은 이 스킬의 몫이 아니다 — 그 요청은 deep-tutor 로
   안내한다.
-argument-hint: "[PDF 경로 | 정리 | 그래프 | 확인]"
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
 # Book Atlas — 원서 한 권을 목차 구조 그대로
@@ -28,9 +26,14 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 
 ## `<book-atlas-root>` 해석
 
-이 문서와 모든 참조 문서가 쓰는 `<book-atlas-root>` 는 설치 후에는
-`~/.claude/skills/book-atlas/`, 이 저장소 안에서 실행할 때는 `skills/book-atlas/` 다
-(호스트 분기 없음).
+이 문서와 모든 참조 문서가 쓰는 `<book-atlas-root>` 는 실행 호스트에 따라 다음과 같다.
+
+- Codex 설치본: `${CODEX_HOME:-$HOME/.codex}/skills/book-atlas/`
+- Claude Code 설치본: `~/.claude/skills/book-atlas/`
+- 이 저장소 안에서 실행할 때: `skills/book-atlas/`
+
+현재 실행 중인 호스트의 경로를 사용한다. 두 설치본이 모두 있어도 다른 호스트의 경로를
+선택하지 않는다.
 
 ---
 
@@ -49,6 +52,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
    다시 묻는다).
 4. **저장소 없음 + PDF 없음** → 무엇을 정리할지 묻는다.
 
+이전 대화에서 사용자가 지정·확인한 저장소가 있으면 그 경로를 재사용한다.
 세션 작업을 시작하기 전에 활성 저장소 경로를 명시적으로 확인한다. 저장소가 활성화되면
 기본 동작은 **정리 세션**이다 — 사용자가 가벼운 확인이나 그래프를 명시적으로 요청할
 때만 아래 해당 절로 간다.
@@ -89,7 +93,9 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
    python3 "<book-atlas-root>/scripts/build-graph.py" "{book-slug}-atlas"
    ```
    노트가 한 장도 없는 이 시점에도 그래프는 목차 뼈대(책→챕터)를 보여준다.
-7. **PostToolUse 훅 설치 여부 질문** (선택) — 원하면 스킬이 직접 기록한다. 위치는
+7. **Claude Code에서만 PostToolUse 훅 설치 여부 질문** (선택) — Codex에서는 대응
+   훅을 설치하지 않고 이 단계를 건너뛴다. Claude Code에서 사용자가 원하면 스킬이 직접
+   기록한다. 위치는
    **vault 안이 아니라 그것을 담은 프로젝트 루트**의 `.claude/settings.json` 이고,
    JSON 조각은 `templates.md` ⑧ 그대로다(`matcher: Write|Edit` →
    `<book-atlas-root>/scripts/check-note-hook.sh`). 파일이 이미 있으면
@@ -124,6 +130,10 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
    exit 2 면 stderr 의 `FAIL` 목록을 고치고 **다시 실행**한다. 통과한 뒤에야
    frontmatter `status: done` 이고, `_coverage.md` 의 `정리 노트`·`상태` 칸을
    갱신한다(`부분`·`미반영` 뒤에는 `— 사유` 를 붙인다).
+   `check-note.sh`는 `check-quality.py`도 호출한다. 질문표와 중요 개념의 본문 링크는
+   `FAIL`로 잡고, 최초 풀이의 표준 표기를 못 찾으면 `REVIEW`를 출력한다.
+   `REVIEW`는 주변 산문·표와 용어집의 최초 위치를 읽어 판정한다. 문자열 불일치를
+   내용 누락으로 세지 말고, 실제 풀이가 부족한 경우에만 보강한다.
 5. **챕터 완결 시** — `_chapter.md` 를 완성한다(필수 요소 5개: `templates.md` ④).
    **챕터 개요의 `## 읽는 순서` 흐름도는 노드 수와 무관하게 항상 mermaid flowchart
    로 그린다** — `figures.md` §4 의 형식 선택 규칙(무엇을 그리는가에 따라
@@ -161,6 +171,16 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion
 ---
 
 ## 가벼운 확인 (요청 시)
+
+산출물의 검수·보강 요청은 퀴즈가 아니다. 요청 범위의 노트·장 게이트와
+`python3 "<book-atlas-root>/scripts/check-quality.py" <vault-or-chapter>`를 실행하고,
+원문과 커버리지의 절·예제·도표를 대조한다. 구조 전수 검사와 원문 표본 검수의 범위를
+구분해 보고한다. `audit-delivery.py`의 캡션 언급은 그림의 재현·추출을 증명하지 않는다.
+실제 도표가 관계·수치·화면 정보를 보존하는지도 확인한다. 형식 검사 통과만으로
+원문 전체의 정확성이나 12개 규칙 전부의 충족을 선언하지 않는다.
+
+검수만 요청받았으면 읽기 전용으로 결과를 보고한다. 보강 요청이면 구분자 아래를
+보존하며 수정하고, 수정한 노트·장의 게이트와 그래프 재생성을 완료한다.
 
 최근 정리한 절의 `## 스스로 확인` 질문을 던지고 가볍게 피드백한다. **막힘을 추적하거나
 기록하지 않는다** — 이 스킬에는 gap 파일도 세션 로그도 없다. 사용자가 본격 인출
@@ -253,6 +273,7 @@ open "{book-slug}-atlas/graph/graph.html"
 | 스크립트 | 호출 형태 |
 |---|---|
 | `check-note.sh` | `check-note.sh <노트경로>` — 절 노트 완료 게이트 |
+| `check-quality.py` | `python3 check-quality.py <노트·챕터·vault>` — 질문표·본문 링크 검사와 최초 풀이 검토 후보. FAIL은 exit 2, REVIEW만 있으면 0. 읽기 전용 |
 | `check-chapter.sh` | `check-chapter.sh <챕터경로>` — 챕터 완결 게이트 |
 | `check-note-hook.sh` | PostToolUse 훅 래퍼. 스킬이 직접 부르지 않는다 — 호스트가 stdin 으로 넘긴 JSON 을 읽어 대상 노트면 `check-note.sh` 를 돌린다 |
 | `verify-offset.sh` | `verify-offset.sh <pdf> <책쪽> <오프셋>` — 쪽 오프셋 왕복 검산 |
