@@ -253,12 +253,20 @@ def main():
     # 스크립트와의 분류 불일치였다. collected_notes 보다 넓을 수 있으며,
     # "노트로 분류되지만 그래프 노드가 없는" 이름은 아래 엣지 생성부에서
     # collected_notes 대조 시 엣지도 경고도 없이 조용히 건너뛴다).
+    # 파일명(stem) 과 **경로 붙은 형태**를 둘 다 담는다. 같은 이름 노트가 여러 장에
+    # 있을 때(`04-summary` 는 3개·`08-summary` 는 2개) 볼트는 모호함을 피하려
+    # `[[chapter-02-pre-training-data/08-summary|08-summary]]` 처럼 경로를 붙인다 —
+    # stem 만 담으면 그 링크가 노트로 인식되지 않아 "용어집에 없는 개념" 으로
+    # 잘못 경고한다(`check-note.sh` 는 SKILL-002 에서 같은 문제를 이미 고쳤다).
     vault_md_stems = set()
     for p in root.rglob('*.md'):
         rel = p.relative_to(root)
         if 'graph' in rel.parts[:-1]:
             continue
         vault_md_stems.add(p.stem)
+        vault_md_stems.add(rel.with_suffix('').as_posix())          # 볼트 루트 기준 전체 경로
+        if len(rel.parts) >= 2:
+            vault_md_stems.add('/'.join(rel.with_suffix('').parts[-2:]))  # 장/노트
 
     nodes = []
     node_ids = set()
