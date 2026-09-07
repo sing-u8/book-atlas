@@ -26,8 +26,22 @@ def config(vault):
 
 
 def pages(spec):
-    """'371(14행)–375(11행)' → (371, 375) · '284(상단)' → (284, 284)"""
-    nums = re.findall(r'\d+', re.sub(r'\([^)]*\)', '', spec))
+    """'371(14행)–375(11행)' → (371, 375) · '284(상단)' → (284, 284)
+    · '191 7행–192 10행' → (191, 192) · '192 11–29행' → (192, 192)
+
+    괄호를 걷은 뒤 **줄번호(`NN행`·`NN–NN행`)를 한 번 더 걷어낸다.** 이 볼트의
+    커버리지 표는 쪽번호 옆에 괄호 없이 줄번호를 적으므로, 걷어내지 않으면
+    마지막 숫자가 끝쪽이 아니라 "끝쪽의 줄번호"가 되어 (191, 10) 같은 뒤집힌
+    범위가 나온다. pdftotext 는 그런 범위에 오류 없이 빈 출력을 내므로 후보가
+    0건이 되고, 검사는 아무것도 읽지 않은 채 `누락 의심 0건`을 인쇄한다 —
+    눈으로는 통과와 구별되지 않는 조용한 실패다(SKILL-008).
+
+    check-chapter.sh 가 같은 표기를 다루려고 쓰는 sed 패턴(SKILL-007)과 같은
+    모양을 파이썬 정규식으로 옮긴 것이다.
+    """
+    spec = re.sub(r'\([^)]*\)', '', spec)
+    spec = re.sub(r'\d+(?:\s*[–-]\s*\d+)*\s*행', '', spec)
+    nums = re.findall(r'\d+', spec)
     if not nums:
         return None
     return int(nums[0]), int(nums[-1])
@@ -112,6 +126,12 @@ def main(argv):
         rng, notecell = m.group(1), m.group(2)
         pg = pages(rng)
         if not pg:
+            continue
+        if pg[0] > pg[1]:
+            # 여기서 걸러내지 않으면 pdftotext 가 빈 출력을 내고 그 행은 후보 0건이
+            # 되어, 검사하지 않은 것과 통과한 것이 구별되지 않는다(SKILL-008).
+            unknown.append((rng, '범위오류',
+                            f'쪽 범위가 뒤집혔다({pg[0]}→{pg[1]}) — 이 행은 검사하지 못했다'))
             continue
         notes = LINK.findall(notecell)
         if not notes:
