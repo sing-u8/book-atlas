@@ -7,11 +7,16 @@
 ## 설치 및 제거
 
 ```bash
+git clone https://github.com/sing-u8/book-atlas.git
+cd book-atlas
+```
+
+```bash
+# Claude Code에 설치(기본값 — 인자를 생략해도 같다)
+./install.sh --claude
+
 # Codex에 설치
 ./install.sh --codex
-
-# Claude Code에 설치(기존 기본 동작)
-./install.sh --claude
 
 # 두 호스트에 모두 설치
 ./install.sh --all
@@ -40,9 +45,12 @@ Codex 설치본은 `${CODEX_HOME:-$HOME/.codex}/skills/book-atlas/`, Claude Code
 6. 그래프 재생성 (`build-graph.py`) → 경고 처리 → `graph/graph.html` 새로고침
 
 ### 3. 그래프 보기
-<!-- 그래프 스크린샷 자리 -->
+![book-atlas 3D 그래프](docs/graph.png)
 
-타입별 노드 색상 (책/챕터/절/개념), 레이어 토글, 호버 하이라이트, Obsidian 클릭 지원.
+*1부(1~4장)를 정리한 시점의 그래프. 주황이 챕터, 청록이 절 노트, 보라가 개념이다.*
+
+타입별 노드 색상(책·챕터·노트·개념), 레이어/엣지 토글, 노드 검색, 호버 하이라이트,
+Obsidian 클릭 지원. 좌클릭 회전 · 휠 확대 · 우클릭 이동.
 
 ## 저장소 구조 (`{book-slug}-atlas/`)
 
