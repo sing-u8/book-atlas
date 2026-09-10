@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- 볼트 `/Users/singyupark/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas` (브랜치 `remediation`)
-- 스킬 `/Users/singyupark/Documents/claude-skill-set/book-atlas` (브랜치 `remediation-toolchain`)
+- 볼트 `~/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas` (브랜치 `remediation`)
+- 스킬 `~/Documents/claude-skill-set/book-atlas` (브랜치 `remediation-toolchain`)
 - **PDF쪽 = 책쪽 + 22.** PDF 는 `_global/config.md` 의 `source_pdf`. 경로에 공백이 있으니 항상 따옴표
 - **행 하나가 곧 지시다.** 실행자는 행의 `조치` 를 그대로 수행한다. 행이 시키지 않은 것을 하지 않는다
 - **상태 전이**: 실행자는 `열림` → `적용` 까지만. `적용` → `검증` 은 `reconcile.py --promote` 만

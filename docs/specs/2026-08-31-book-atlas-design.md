@@ -500,7 +500,7 @@ gaps/confusions/cross-bridges/session-log 파일군, 구분자 아래 스킬 기
 ## 14. 스킬 패키지 구조
 
 ```
-/Users/singyupark/Documents/claude-skill-set/book-atlas/
+~/Documents/claude-skill-set/book-atlas/
 ├── README.md · LICENSE(MIT) · install.sh · uninstall.sh    # tutor-skills 관례
 ├── docs/specs/2026-08-31-book-atlas-design.md              # 이 문서
 └── skills/book-atlas/

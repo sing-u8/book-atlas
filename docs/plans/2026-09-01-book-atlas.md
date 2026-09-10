@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- 저장소 루트: `/Users/singyupark/Documents/claude-skill-set/book-atlas/` (이미 git init 됨). 모든 경로는 이 루트 기준.
-- 이식 원본: `/Users/singyupark/Documents/claude-skill-set/tutor-skills/개선판_스킬/deep-tutor/` — 이하 "DT 원본".
+- 저장소 루트: `~/Documents/claude-skill-set/book-atlas/` (이미 git init 됨). 모든 경로는 이 루트 기준.
+- 이식 원본: `~/Documents/claude-skill-set/tutor-skills/개선판_스킬/deep-tutor/` — 이하 "DT 원본".
 - bash 스크립트는 macOS 기본 bash 3.2 에서 돌아야 한다: `mapfile`·연관배열·`${var,,}` 금지 (DT 원본 스크립트가 이미 이 제약을 지킨다 — 같은 스타일 유지).
 - python 은 `python3` 표준 라이브러리만. pip 의존 금지.
 - 스크립트 종료코드 계약: `0` 통과 · `2` 검사 실패(사유를 stderr) · `1` 사용법·입력 오류.
@@ -42,7 +42,7 @@
 - [ ] **Step 1: 디렉터리·기본 파일 생성**
 
 ```bash
-cd /Users/singyupark/Documents/claude-skill-set/book-atlas
+cd ~/Documents/claude-skill-set/book-atlas
 mkdir -p skills/book-atlas/{references,scripts/tests/fixtures,assets/lib}
 printf '.DS_Store\n' > .gitignore
 ```
@@ -52,7 +52,7 @@ printf '.DS_Store\n' > .gitignore
 - [ ] **Step 2: 스크립트 2종 이식 (수정 없이 복사)**
 
 ```bash
-DT=/Users/singyupark/Documents/claude-skill-set/tutor-skills/개선판_스킬/deep-tutor
+DT=~/Documents/claude-skill-set/tutor-skills/개선판_스킬/deep-tutor
 cp "$DT/scripts/verify-offset.sh" "$DT/scripts/extract-figure.sh" skills/book-atlas/scripts/
 chmod +x skills/book-atlas/scripts/*.sh
 ```

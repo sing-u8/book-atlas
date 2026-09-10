@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- 볼트 경로 `/Users/singyupark/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas`
-- 스킬 저장소 `/Users/singyupark/Documents/claude-skill-set/book-atlas` · 설치본 `~/.claude/skills/book-atlas`
+- 볼트 경로 `~/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas`
+- 스킬 저장소 `~/Documents/claude-skill-set/book-atlas` · 설치본 `~/.claude/skills/book-atlas`
 - **PDF쪽 = 책쪽 + 22.** PDF 는 `_global/config.md` 의 `source_pdf` 에서 읽는다. 경로에 공백이 있으니 항상 따옴표로 감싼다
 - 검사 스크립트 종료코드 계약: **0 통과 · 2 검사 실패(사유는 stderr) · 1 사용법·입력 오류**
 - Python 은 표준 라이브러리만. 외부 패키지 설치 금지
@@ -22,8 +22,8 @@
 - 단계 태그는 `S P K E G M` 여섯 개뿐. 상태는 `열림 적용 검증 보류(...)` 넷뿐
 - **볼트 노트를 수정하는 작업은 이 계획에 없다.** 이 계획은 도구와 게이트만 만든다
 - 아래 세 자리표시자는 이 경로를 뜻한다. 계획 본문에서 그대로 치환해 쓴다
-  - `{vault}` = `/Users/singyupark/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas`
-  - `{skill}` = `/Users/singyupark/Documents/claude-skill-set/book-atlas`
+  - `{vault}` = `~/Documents/StudyWithClaude/Designing_LLM/designing-llm-applications-atlas`
+  - `{skill}` = `~/Documents/claude-skill-set/book-atlas`
   - `{fixes}` = `{vault}/_global/fixes` — 원장과 그 도구가 사는 곳. **재검수 산출물도 여기 보존돼 있다**
     (`_source-reaudit-ch01.md` 1장 재검수 · `_source-audit-2026-09-05.md` 옛 감사 190건 ·
     `_source-machine-2026-09-05.md` 기계검증 · `_reaudit-protocol.md` 규약 · `_reaudit-state.md` 기준)
