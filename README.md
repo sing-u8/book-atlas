@@ -29,6 +29,10 @@ Codex 설치본은 `${CODEX_HOME:-$HOME/.codex}/skills/book-atlas/`, Claude Code
 발견되며, 명시적으로 호출하려면 `$book-atlas`를 사용합니다. 제거할 때도 같은 대상을
 `./uninstall.sh --codex|--claude|--all`로 지정합니다.
 
+> **스킬을 고쳤다면 `./install.sh --all` 로 다시 설치해야 반영됩니다.** 실제로 실행되는
+> 것은 저장소가 아니라 설치본이고, 두 호스트에 각각 있습니다. 한쪽만 설치하면 다른 쪽은
+> 옛 버전으로 남습니다. 자세한 개발 규약은 [`CLAUDE.md`](CLAUDE.md) 를 보세요.
+
 ## 사용 흐름
 
 ### 1. 온보딩 (저장소 부트스트랩)
