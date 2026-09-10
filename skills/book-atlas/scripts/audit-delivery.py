@@ -12,6 +12,20 @@ LINK = re.compile(r'\[\[([^\]|#]+)')
 STOP = {'the', 'and', 'for', 'that', 'this', 'with', 'from', 'are', 'not', 'you',
         'can', 'will', 'have', 'our', 'its', 'them', 'these', 'those', 'any'}
 
+# 러닝 헤더·푸터와 장·부 표지 — 쪽 furniture 이지 표제·콜아웃·캡션이 아니다(SKILL-009).
+# 우면 헤더(`Multi-LLM Architectures   |   323`)는 오른쪽 정렬이라 들여쓰기 15 이상이
+# 되어 콜아웃으로 잡히고, 인접한 진짜 콜아웃과 병합되면서 탐침까지 오염시킨다.
+RUNNING = re.compile(
+    r'^\d+\s*\|\s*Chapter \d+:'       # 좌면: 230   |   Chapter 10: ...
+    r'|\|\s*\d+\s*$'                   # 우면: Multi-LLM Architectures   |   323
+    r'|^CHAPTER \d+$'                   # 장 표지
+    r'|^PART [IVXLC]+$'                 # 부 표지
+)
+# 목록·코드를 여는 산문 리드인(`Output:`·`Here is an example:`). 들여쓰기 0·마침표 없음·
+# 대문자 시작·7단어 이하라 표제 조건을 그대로 통과하지만 표제가 아니다(SKILL-009).
+# 콜아웃에는 적용하지 않는다 — 목록을 여는 TIP 상자가 통째로 사라지기 때문이다.
+LEADIN = re.compile(r':$')
+
 
 def config(vault):
     pdf, off = None, 0
@@ -62,6 +76,8 @@ def candidates(lines):
             continue
         indent = len(line) - len(line.lstrip())
         text = line.strip()
+        if RUNNING.search(text):
+            continue
         m = CAPTION.search(text)
         if m:
             found.append(('캡션', f"{m.group(1)} {m.group(2)}", [m.group(2)], idx))
@@ -74,6 +90,7 @@ def candidates(lines):
             else:
                 found.append(('콜아웃', text[:60], [], idx))
         elif indent == 0 and len(text) <= 60 and not text.endswith('.') \
+                and not LEADIN.search(text) \
                 and text[0].isupper() and len(text.split()) <= 7:
             found.append(('표제', text, [text], idx))
     # 콜아웃이 이어지면 하나로 접는다(콜아웃은 여러 줄이다) — 단, 원문에서 실제로
