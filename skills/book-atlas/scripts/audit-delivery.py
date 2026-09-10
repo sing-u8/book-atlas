@@ -61,6 +61,44 @@ def pages(spec):
     return int(nums[0]), int(nums[-1])
 
 
+LINESPEC = re.compile(r'(\d+)\s*(?:[–-]\s*(\d+)\s*)?행')
+
+
+def line_bounds(spec):
+    """'321 7행–322 35행' → (7, 35) · '192 11–29행' → (11, 29)
+    · '173–174 14행' → (None, 14) · '166–169' → (None, None)
+
+    커버리지 표의 구간은 행까지 적히는데 검사는 쪽 단위로만 잘라 읽어서, 앞 절의
+    끝과 다음 절의 머리가 이 행의 후보로 딸려 왔다(SKILL-010). 여기서 읽은 경계를
+    `candidates()` 에 넘겨 그 범위 밖 줄을 뺀다.
+
+    **읽을 수 없는 표기는 (None, None) 로 둔다.** 잘못 거르면 진짜 발견이 조용히
+    사라지지만, 못 거르면 지금까지의 잡음이 남을 뿐이라 안전한 쪽으로 기운다.
+    """
+    s = spec.replace('(', ' ').replace(')', ' ')
+    marks = list(LINESPEC.finditer(s))
+    if not marks:
+        return (None, None)
+    if len(marks) >= 2:
+        a = int(marks[0].group(1))
+        b = int(marks[-1].group(2) or marks[-1].group(1))
+        return (a, b)
+    m = marks[0]
+    if m.group(2):                      # '11–29행' — 한 쪽 안의 행 범위
+        return (int(m.group(1)), int(m.group(2)))
+    # 행 표기가 하나뿐이면 뒤에 쪽번호가 더 있는지로 어느 끝인지 가른다.
+    return (int(m.group(1)), None) if re.search(r'\d', s[m.end():]) \
+        else (None, int(m.group(1)))
+
+
+def split_pages(text):
+    """pdftotext 출력을 쪽별 줄 목록으로 나눈다(쪽 안에서 행을 세야 하므로)."""
+    chunks = text.split('\f')
+    if chunks and chunks[-1] == '':
+        chunks.pop()
+    return [c.split('\n') for c in chunks]
+
+
 def extract(pdf, first, last):
     out = subprocess.run(
         ['pdftotext', '-layout', '-f', str(first), '-l', str(last), pdf, '-'],
@@ -68,11 +106,27 @@ def extract(pdf, first, last):
     return out.stdout.split('\n')
 
 
-def candidates(lines):
-    """(종류, 표시문자열, 탐침목록) 목록을 낸다."""
+def extract_by_page(pdf, first, last):
+    """쪽별 줄 목록 — 행 경계로 자르려면 쪽 안에서 행을 세야 한다(SKILL-010)."""
+    out = subprocess.run(
+        ['pdftotext', '-layout', '-f', str(first), '-l', str(last), pdf, '-'],
+        capture_output=True, text=True)
+    return split_pages(out.stdout)
+
+
+def candidates(lines, lo=None, hi=None):
+    """(종류, 표시문자열, 탐침목록) 목록을 낸다.
+
+    `lo`·`hi` 는 이 쪽 안에서 검사할 1-기반 행 범위다(SKILL-010). None 이면 그쪽
+    끝은 제한하지 않는다.
+    """
     found = []
     for idx, line in enumerate(lines):
         if not line.strip():
+            continue
+        if lo is not None and idx + 1 < lo:
+            continue
+        if hi is not None and idx + 1 > hi:
             continue
         indent = len(line) - len(line.lstrip())
         text = line.strip()
@@ -136,6 +190,7 @@ def main(argv):
         return 1
 
     ok, miss, unknown = [], [], []
+    trimmed = 0
     for line in open(cov, encoding='utf-8'):
         m = ROW.match(line)
         if not m:
@@ -160,8 +215,19 @@ def main(argv):
                 body += open(p, encoding='utf-8').read()
         if not body:
             continue
-        lines = extract(pdf, pg[0] + off, pg[1] + off)
-        for kind, label, probes in candidates(lines):
+        # 쪽 단위로만 자르면 앞 절의 끝과 다음 절의 머리가 딸려 온다. 커버리지가
+        # 적어 둔 행 경계로 첫 쪽의 앞부분과 끝 쪽의 뒷부분을 잘라낸다(SKILL-010).
+        lo, hi = line_bounds(rng)
+        pages_ = extract_by_page(pdf, pg[0] + off, pg[1] + off)
+        cands, wide = [], 0
+        for i, plines in enumerate(pages_):
+            a = lo if i == 0 else None
+            b = hi if i == len(pages_) - 1 else None
+            cands += candidates(plines, a, b)
+            if a is not None or b is not None:
+                wide += len(candidates(plines)) - len(candidates(plines, a, b))
+        trimmed += wide
+        for kind, label, probes in cands:
             if not probes:
                 unknown.append((rng, kind, label))
             elif any(p in body for p in probes):
@@ -173,6 +239,10 @@ def main(argv):
     print(f"누락 의심   {len(miss)}건")
     for rng, kind, label, probes in miss:
         print(f"    p.{rng} [{kind}] {label}   탐침={probes}")
+    if trimmed:
+        # 조용히 줄이지 않는다 — 행 경계가 틀리면 진짜 후보가 사라지므로 몇 건을
+        # 뺐는지 항상 보인다(SKILL-010).
+        print(f"행 경계 밖   {trimmed}건 제외(커버리지의 NN행 표기 기준)")
     print(f"확인 불가   {len(unknown)}건")
     for rng, kind, label in unknown:
         print(f"    p.{rng} [{kind}] {label}")

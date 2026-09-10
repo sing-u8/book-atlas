@@ -27,6 +27,7 @@ expect 1 "check-note: 인자 없음"        -- "$S/check-note.sh"
 expect 0 "quality: 내용 누락 후보와 형식 오류 구분 회귀 검사" -- python3 "$HERE/test-quality.py"
 expect 0 "audit-delivery: 줄번호 섞인 쪽 표기 파싱(SKILL-008)" -- python3 "$HERE/test-audit-pages.py"
 expect 0 "audit-delivery: 러닝 헤더·리드인을 후보에서 뺀다(SKILL-009)" -- python3 "$HERE/test-audit-noise.py"
+expect 0 "audit-delivery: 행 경계 밖 넘침을 뺀다(SKILL-010)" -- python3 "$HERE/test-audit-spill.py"
 
 expect 0 "check-chapter: 통과 챕터"     -- "$S/check-chapter.sh" "$F/vault/chapter-01-intro"
 expect 2 "check-chapter: 누락 참조+고아" -- "$S/check-chapter.sh" "$F/chapter-bad"
