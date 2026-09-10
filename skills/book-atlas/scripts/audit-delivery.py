@@ -99,13 +99,6 @@ def split_pages(text):
     return [c.split('\n') for c in chunks]
 
 
-def extract(pdf, first, last):
-    out = subprocess.run(
-        ['pdftotext', '-layout', '-f', str(first), '-l', str(last), pdf, '-'],
-        capture_output=True, text=True)
-    return out.stdout.split('\n')
-
-
 def extract_by_page(pdf, first, last):
     """쪽별 줄 목록 — 행 경계로 자르려면 쪽 안에서 행을 세야 한다(SKILL-010)."""
     out = subprocess.run(
